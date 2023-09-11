@@ -1,9 +1,6 @@
 //code goes here
 "use strict";
 
-//TODO: why does cors block headers, but not query strings?
-//TODO: why are promises fulfilled for an obviously bad URL in chrome but not firefox?
-
 const BASE_URL = 'http://numbersapi.com';
 
 const CARD_URL = 'https://deckofcardsapi.com/api/deck/';
@@ -16,8 +13,8 @@ async function showNumberTrivia(num) {
   // let resp = await fetch(`${BASE_URL}/${num}`, {
   //   headers: {"Content-Type" : "application/json"}
   // });
-  let resp = await fetch(`${BASE_URL}/${num}?json`);
-  let data = await resp.json();
+  const resp = await fetch(`${BASE_URL}/${num}?json`);
+  const data = await resp.json();
   console.log('favorite number fact: ', data);
   return data;
 }
@@ -32,12 +29,12 @@ async function showNumberRace(numArr) {
 
   let promises = [];
   for (let num of numArr) {
-    let resp = fetch(`${BASE_URL}/${num}?json`);
+    const resp = fetch(`${BASE_URL}/${num}?json`);
     promises.push(resp);
   }
 
-  let winner = await Promise.race(promises);
-  let winner_data = await winner.json();
+  const winner = await Promise.race(promises);
+  const winner_data = await winner.json();
   console.log("winner is: ", winner_data);
 
 }
@@ -92,31 +89,49 @@ async function main() {
 
 }
 
-///CARDs SECTION
-let deck_id;
+////////////////////////////////
+//CARDS SECTION
+////////////////////////////////
 
-async function get_deck() {
-  const new_deck = await fetch(`${CARD_URL}new/shuffle/`);
-  const new_deck_json = await new_deck.json();
-  deck_id = new_deck_json.deck_id;
+
+const drawButton = document.querySelector("#draw-button");
+
+let deckId;
+/**
+ * Called on load. Fetches a deck id from the deckofcards API and sets
+ * the global variable deckId equal to the returned deck_id property.
+ */
+async function getDeck() {
+  const response = await fetch(`${CARD_URL}new/shuffle/`);
+  const newDeck = await response.json();
+  deckId = newDeck.deck_id;
   console.log("DECK LOADED");
 }
 
-async function draw_card() {
-  const card_resp = await fetch(`${CARD_URL}${deck_id}/draw`);
-  const card = await card_resp.json();
-  let cardImage = document.createElement("img");
-  cardImage.setAttribute("src", card.image);
+
+/**
+ * Called on click. Queries deckofcardsAPI using the deckId global variable
+ * to draw a random card. Uses the cards[0].image of the returned response
+ * to create a new img element and append it to the dom. Once there are no more
+ * cards in the deck, the button to draw a new card disappears (and should reappear)
+ * on next load.
+ */
+async function drawCard() {
+
+  const response = await fetch(`${CARD_URL}${deckId}/draw/`);
+  const data = await response.json();
+
+  const cardImage = document.createElement("img");
+  cardImage.setAttribute("src", data.cards[0].image);
+  cardImage.style.width = "100px";
   document.getElementById("card-container").appendChild(cardImage);
-  let drawButton = document.getElementById("draw-button");
 
-  if (card.remaining === 0) {
-    drawButton.setAttribute("display", "hidden");
+  if (data.remaining < 44) { //technically, this should === 0, but using for testing.
+    drawButton.style.display = "none";
+    // drawButton.setAttribute("style", "display: none;");
   }
-
 }
 
-window.addEventListener("load", get_deck);
-
-document.getElementById("draw-button").addEventListener("click", draw_card);
+window.addEventListener("load", getDeck);
+drawButton.addEventListener("click", drawCard);
 
