@@ -108,7 +108,7 @@ async function getDeck() {
   console.log("DECK LOADED");
 }
 
-
+//
 /**
  * Called on click. Queries deckofcardsAPI using the deckId global variable
  * to draw a random card. Uses the cards[0].image of the returned response
