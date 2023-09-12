@@ -1,12 +1,18 @@
 //code goes here
-
+"use strict";
 
 //TODO: why does cors block headers, but not query strings?
 //TODO: why are promises fulfilled for an obviously bad URL in chrome but not firefox?
 
 const BASE_URL = 'http://numbersapi.com';
 
-async function showNumberTrivia(num){
+const CARD_URL = 'https://deckofcardsapi.com/api/deck/';
+
+/**
+ * Takes in a number, calls the Numbers API, and displays trivia about that
+ * number.
+ */
+async function showNumberTrivia(num) {
   // let resp = await fetch(`${BASE_URL}/${num}`, {
   //   headers: {"Content-Type" : "application/json"}
   // });
@@ -18,62 +24,99 @@ async function showNumberTrivia(num){
 
 // showNumberTrivia(85);
 
+/**
+ * Takes in an array of nmbers, makes multiple calls to the Numbers API,
+ * and prints trivia about the number whose API call was answered first.
+ */
+async function showNumberRace(numArr) {
 
-async function showNumberRace(start_num){
+  let promises = [];
+  for (let num of numArr) {
+    let resp = fetch(`${BASE_URL}/${num}?json`);
+    promises.push(resp);
+  }
 
-  let resp1 = fetch(`${BASE_URL}/${start_num}?json`);
-  let resp2 = fetch(`${BASE_URL}/${start_num + 1}?json`);
-  let resp3 = fetch(`${BASE_URL}/${start_num + 2}?json`);
-  let resp4 = fetch(`${BASE_URL}/${start_num + 3}?json`);
-
-  let winner = await Promise.race([resp1, resp2, resp3, resp4]);
+  let winner = await Promise.race(promises);
   let winner_data = await winner.json();
   console.log("winner is: ", winner_data);
 
 }
-// showNumberRace(85);
 
-let test;
-async function showNumberAll(nums){
+/**
+ * Takes an array of numbers and makes a request to the Numbers API for each of
+ * them, plus one bad call. Prints the results of the successful calls in one
+ * array and the failures in another array.
+ */
+async function showNumberAll(nums) {
 
   let promises = [];
-  for (let num of nums){
+  for (let num of nums) {
     let resp = fetch(`${BASE_URL}/${num}?json`);
     promises.push(resp);
   }
-  //${BASE_URL}/STRING?json
-  let badResp = fetch(`/ASD`);
+  let badResp = fetch(`${BASE_URL}/STRING?json`);
   promises.push(badResp);
 
   let results = await Promise.allSettled(promises);
-  test = results;
   // console.log(results);
 
-  let trivia_or_errors = [];
-  for (let result of results){
-    if (result.value.ok){
+  let trivia = [];
+  let errors = [];
+  for (let result of results) {
+    if (result.value.ok) {
       // console.log('result.value.ok is: ', result.value.ok);
       // console.log('result is: ', result);
 
       let data = await result.value.json();
-      trivia_or_errors.push(data.text);
+      trivia.push(data.text);
     } else {
       let errorResp = `${result.value.status} ${result.value.statusText}`;
-      trivia_or_errors.push(errorResp);
+      errors.push(errorResp);
     }
   }
 
-  console.log(trivia_or_errors);
+  console.log("SUCCESSES:", trivia);
+  console.log("ERRORS:", errors);
 }
 
-let somenums = [1,2,3,4];
-showNumberAll(somenums);
 
-
-
-function main(){
+/**
+ * Calls each of the above functions and prints their results in the order
+ * called.
+ */
+async function main() {
   let favNum = 85;
-  showNumberTrivia(favNum);
-  showNumberRace();
-  showNumberAll();
+  await showNumberTrivia(favNum);
+  await showNumberRace([5, 6, 7, 8]);
+  await showNumberAll([1, 2, 3, 4, 5, "hello"]);
+
 }
+
+///CARDs SECTION
+let deck_id;
+
+async function get_deck() {
+  const new_deck = await fetch(`${CARD_URL}new/shuffle/`);
+  const new_deck_json = await new_deck.json();
+  deck_id = new_deck_json.deck_id;
+  console.log("DECK LOADED");
+}
+
+async function draw_card() {
+  const card_resp = await fetch(`${CARD_URL}${deck_id}/draw`);
+  const card = await card_resp.json();
+  let cardImage = document.createElement("img");
+  cardImage.setAttribute("src", card.image);
+  document.getElementById("card-container").appendChild(cardImage);
+  let drawButton = document.getElementById("draw-button");
+
+  if (card.remaining === 0) {
+    drawButton.setAttribute("display", "hidden");
+  }
+
+}
+
+window.addEventListener("load", get_deck);
+
+document.getElementById("draw-button").addEventListener("click", draw_card);
+
